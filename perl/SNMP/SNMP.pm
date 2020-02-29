@@ -383,10 +383,11 @@ sub reply_cb {
 }
 
 sub select_info {
+    my $fdsize = shift || 0;
     # retrieves SNMP used fd's and timeout info
     # calculates timeout in fractional seconds
     # ( easy to use with select statement )
-    my($block, $to_sec, $to_usec, @fd_set)=SNMP::_get_select_info();
+    my($block, $to_sec, $to_usec, @fd_set)=SNMP::_get_select_info($fdsize);
     my $time_sec_dec = ($block? 0 : $to_sec + $to_usec * 1e-6);
     #print "fd's for snmp -> ", @fd_set, "\n";
     #print "block		-> ", $block, "\n";
@@ -402,7 +403,7 @@ sub check_timeout {
   # the callback function
   SNMP::_check_timeout();
   # check to see when have to check again
-  my($block, $to_sec, $to_usec, @fd_set)=SNMP::_get_select_info();
+  my($block, $to_sec, $to_usec, @fd_set)=SNMP::_get_select_info(0);
   my $time_sec_dec = ($block? 0 : $to_sec + $to_usec * 1e-6);
   #print "fd's for snmp -> ", @fd_set, "\n";
   #print "block		-> ", $block, "\n";

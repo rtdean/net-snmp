@@ -14,6 +14,8 @@
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
+#include <net-snmp/library/large_fd_set.h>
+
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -5055,20 +5057,21 @@ snmp_main_loop(timeout_sec,timeout_usec,perl_callback,ss=(SnmpSession*)NULL)
 
 
 void
-snmp_get_select_info()
+snmp_get_select_info(numfds)
+        int numfds
 	PPCODE:
 	{
-        int numfds;
-        fd_set fdset;
+        netsnmp_large_fd_set lfdset;
         struct timeval time_val, *tvp;
         int block;
 	int i;
 
-        numfds = 0;
         block = 1;
         tvp = &time_val;
-        FD_ZERO(&fdset);
-        snmp_select_info(&numfds, &fdset, tvp, &block);
+        if ( numfds == 0 ) { numfds = FD_SETSIZE; }
+        netsnmp_large_fd_set_init(&lfdset, numfds);
+        numfds = 0;
+        snmp_select_info2(&numfds, &lfdset, tvp, &block);
 	XPUSHs(sv_2mortal(newSViv(block)));
 	if(block){
             XPUSHs(sv_2mortal(newSViv(0)));
@@ -5079,13 +5082,14 @@ snmp_get_select_info()
 	}
 	if ( numfds ) {
             for(i=0; i<numfds ; i++) {
-                if(FD_ISSET(i, &fdset)){
+                if(NETSNMP_LARGE_FD_ISSET(i, &lfdset)){
                     XPUSHs(sv_2mortal(newSViv(i)));
                 }
             }
 	} else {
             XPUSHs(&sv_undef);  /* no mem or bad args */
 	}
+        netsnmp_large_fd_set_cleanup(&lfdset);
 	}
 
 void
@@ -5093,12 +5097,13 @@ snmp_read_on_fd(fd)
 	int fd
 	CODE:
 	{
-           fd_set fdset;
+           netsnmp_large_fd_set lfdset;
 
-           FD_ZERO(&fdset);
-           FD_SET(fd, &fdset);
+           netsnmp_large_fd_set_init(&lfdset, FD_SETSIZE);
+           NETSNMP_LARGE_FD_SET(fd, &lfdset);
 
-           snmp_read(&fdset);
+           snmp_read2(&lfdset);
+           netsnmp_large_fd_set_cleanup(&lfdset);
 	}
 
 void
